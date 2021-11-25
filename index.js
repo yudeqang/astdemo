@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path')
 
 
-step1().then(step2)
+step1().then(step2).then(step3)
 
 function step1() {
     return new Promise((resolve, reject) => {
@@ -41,14 +41,39 @@ function step1() {
 }
 
 function step2() {
-    fs.readFile(path.resolve(__dirname, './result1.js'), { "encoding": 'utf-8' }, function (err, data) {
+    return new Promise((resolve, reject)=>{
+            fs.readFile(path.resolve(__dirname, './result1.js'), { "encoding": 'utf-8' }, function (err, data) {
         const ast = parse(data)
         decrypt_while(ast)
         let { code } = generator(ast)
         code = code.replace(/!!\[\]/g, 'true').replace(/!\[\]/g, 'false')
         fs.writeFile(path.resolve(__dirname, './result4.js'), code, function (err) {
             if (!err) {
-                console.log('finished')
+                console.log('step2 finished')
+                resolve()
+            } else {
+                console.log(err)
+                reject()
+            }
+        })
+    })})
+}
+
+function step3(){
+fs.readFile(path.resolve(__dirname, 'result4.js'), {'encoding': 'utf-8'}, function (err, data) {
+    ast = parse(data)
+    traverse(ast, {
+        Program(path){
+            let bodies = path.node.body
+            // 只保留第四段
+            path.node.body = [bodies[bodies.length - 1]]
+            path.stop()
+        }
+    })
+    code = generator(ast).code
+    fs.writeFile(path.resolve(__dirname, 'result_finally.js'), code, function (err) {
+        if (!err) {
+                console.log('setp3 finished')
             } else {
                 console.log(err)
             }
@@ -171,7 +196,7 @@ function replaceFns(path) {
         let retStmt = properties[0].value.body.body[0]
         if (!t.isReturnStatement(retStmt)) return;
     } catch (e) {
-        console.log('wrong fn arr', properties)
+        console.log('continue null fn arr', properties)
     }
 
     // 存储一下变量名，后面调用都是objName[key]
